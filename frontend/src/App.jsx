@@ -207,6 +207,72 @@ function BrandRulesForm() {
 }
 
 
+function runBrandCheck(content) {
+  const savedRules = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('brandlens-rules')) || {}
+    } catch {
+      return {}
+    }
+  })()
+
+  const savedVoice = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('brandlens-voice')) || {}
+    } catch {
+      return {}
+    }
+  })()
+
+  const avoidWords = (savedRules.avoid || '')
+    .split(',')
+    .map(word => word.trim())
+    .filter(Boolean)
+
+  const approvedWords = (savedRules.approved || '')
+    .split(',')
+    .map(word => word.trim())
+    .filter(Boolean)
+
+  const issues = []
+
+  avoidWords.forEach(word => {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const matches = content.match(new RegExp(`\\b${escaped}\\b`, 'gi'))
+
+    if (matches) {
+      issues.push({
+        type: 'Restricted word',
+        text: word,
+        reason: `The word "${word}" appears in your content but is listed in the Brand Kit's avoid words.`,
+      })
+    }
+  })
+
+  approvedWords.forEach(word => {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const matches = content.match(new RegExp(`\\b${escaped}\\b`, 'gi'))
+
+    if (!matches) {
+      issues.push({
+        type: 'Approved terminology',
+        text: word,
+        reason: `Consider using "${word}", which is listed as approved terminology in your Brand Kit.`,
+      })
+    }
+  })
+
+  const tone = savedVoice.tone || ''
+
+  return {
+    issues,
+    tone,
+    checkedAt: new Date().toLocaleString(),
+    message: 'Rule-based prototype check only. Tone is displayed for context; it is not automatically evaluated.',
+  }
+}
+
+
 function App() {
   const [activePage, setActivePage] = useState('Dashboard')
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -217,28 +283,38 @@ function App() {
   const [notice, setNotice] = useState('')
   const [search, setSearch] = useState('')
 
+  
   function startReview() {
     if (!content.trim()) {
       setNotice('Please enter some content before starting a review.')
       return
     }
 
-    setReviews(previous => [
-      {
-        title: content.trim().split('\n')[0].slice(0, 48) || 'New content review',
-        type: goal,
-        status: 'In progress',
-        score: null,
-        time: 'Just now',
-        color: 'blue',
-      },
-      ...previous,
-    ])
+    const result = runBrandCheck(content.trim())
+
+    const newReview = {
+      title: content.trim().split('\n')[0].slice(0, 48) || 'New content review',
+      type: goal,
+      status: result.issues.length > 0 ? 'Needs review' : 'In progress',
+      score: null,
+      time: 'Just now',
+      color: result.issues.length > 0 ? 'amber' : 'blue',
+      submittedContent: content.trim(),
+      findings: result.issues,
+      brandTone: result.tone,
+      checkedAt: result.checkedAt,
+      reviewMessage: result.message,
+    }
+
+    setReviews(previous => [newReview, ...previous])
     setShowComposer(false)
     setActivePage('Content Reviews')
-    setNotice('Review created. Connect the backend to run the actual brand checks.')
+    setNotice(
+      `Prototype check complete: ${result.issues.length} finding(s). This is a rule-based check, not an AI review.`
+    )
     setContent('')
   }
+
 
   const filteredReviews = reviews.filter(review =>
     `${review.title} ${review.type} ${review.status}`

@@ -8,12 +8,14 @@ import {
   FileText, Menu, X, ChevronDown, Sparkles,
   MessageSquare, CircleHelp, TrendingUp, XCircle
 } from 'lucide-react'
+import ProfilePage from './ProfilePage'
 
 const navigation = [
   { label: 'Dashboard', icon: LayoutDashboard },
   { label: 'Content Reviews', icon: FileCheck2 },
   { label: 'Brand Kit', icon: BookOpen },
   { label: 'Approvals', icon: ShieldCheck },
+  { label: 'My Profile', icon: Settings },
 ]
 
 const initialReviews = [
@@ -680,6 +682,8 @@ function App() {
               </div>
             </motion.section>
           )}
+
+{activePage === 'My Profile' && <ProfilePage />}
 
           <footer className="mt-10 flex flex-col justify-between gap-2 border-t border-slate-200/80 py-5 text-xs text-slate-400 sm:flex-row sm:items-center">
             <p>© 2026 BrandLens · Built by Orbital Minds</p>
